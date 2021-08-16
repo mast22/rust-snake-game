@@ -1,4 +1,10 @@
+use core::panic;
 use std::io::{self, Write};
+use std::collections::VecDeque;
+use rand::Rng;
+
+const H: i32 = 10;
+const W: i32 = 15;
 
 trait Drawable {
     fn should_draw(&self, x: i32, y: i32) -> Option<char>;
@@ -16,6 +22,26 @@ impl Drawable for Snack {
             return Some('S');
         };
         return None
+    }
+}
+
+impl Snack {
+    fn new_place(&mut self, snake: &Snake) {
+        let mut rng = rand::thread_rng();
+
+        let mut new_x: i32;
+        let mut new_y: i32;
+        
+        // do while
+        while {
+            new_x = rng.gen_range(0..W);
+            new_y = rng.gen_range(0..H);
+
+            snake.collide(new_x, new_y)
+        } {}
+
+        self.x = new_x;
+        self.y = new_y;
     }
 }
 
@@ -38,8 +64,9 @@ enum Direction {
 }
 
 struct Snake {
-    body: Vec<BodyPart>,
+    body: VecDeque<BodyPart>,
     direction: Direction,
+    skip_next_pop: bool, // removal need to be skipped in case snake was feed
 }
 
 impl Drawable for Snake {
@@ -47,7 +74,7 @@ impl Drawable for Snake {
         for body_part in &self.body {
             let body_part_should_draw = body_part.should_draw(x, y);
             if body_part_should_draw.is_some() {
-                if std::ptr::eq(body_part, self.body.first().unwrap()) {
+                if std::ptr::eq(body_part, self.body.front().unwrap()) {
                     return Some('0');
                 }
                 return body_part_should_draw;
@@ -60,44 +87,58 @@ impl Drawable for Snake {
 
 impl Snake {
     fn move_snake(&mut self, direction: Direction) {
-        let last_body_part = self.body.first().unwrap();
+        let head = self.body.front().unwrap();
         let new_body_part = match direction {
-            Direction::Up => {
-                BodyPart {
-                    x: last_body_part.x,
-                    y: last_body_part.y + 1
-                }
-            },
-            Direction::Right => {
-                BodyPart {
-                    x: last_body_part.x + 1,
-                    y: last_body_part.y
-                }
-            },
-            Direction::Left => {
-                BodyPart {
-                    x: last_body_part.x - 1,
-                    y: last_body_part.y 
-                }
-            },
-            Direction::Down => {
-                BodyPart {
-                    x: last_body_part.x,
-                    y: last_body_part.y - 1
-                }
-            },
+            Direction::Up => { (head.x, head.y - 1) },
+            Direction::Right => { (head.x + 1, head.y) },
+            Direction::Left => { (head.x - 1, head.y) },
+            Direction::Down => { (head.x, head.y + 1) },
         };
-        self.body.push(new_body_part)
+        self.body.push_front(BodyPart {
+            x: new_body_part.0, y: new_body_part.1
+        });
+        if !self.skip_next_pop {
+            self.body.pop_back();
+        } else {
+            self.skip_next_pop = false;
+        }
+    }
+
+    fn feed(&mut self, snack: &mut Snack) {
+        let head = self.body.front().unwrap();
+        if snack.x == head.x && snack.y == head.y {
+            self.skip_next_pop = true;
+            snack.new_place(&self);
+        }
+    }
+
+    fn collide(&self, x: i32, y: i32) -> bool {
+        for body_part in &self.body {
+            if body_part.x == x && body_part.y == y {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn check_for_game_over(&self) {
+        let head = self.body.front().unwrap();
+        // if self.collide(head.x, head.y) {
+        //     panic!("You ate yourself, Uroboros!");
+        // }
+
+        if head.x <= 0 || head.x >= W ||
+            head.y <= 0 || head.y >= H {
+            panic!("Out of bounds!");
+        }
     }
 }
 
 fn render_field(snake: &Snake, snack: &Snack) {
-    let h = 10;
-    let w = 15;
-
-    for i in 0..h {
+    for i in 0..H {
         let mut row = String::from("|");
-        for j in 0..w {
+        for j in 0..W {
             let mut symbol_to_draw = snack.should_draw(j, i);
             match snake.should_draw(j, i) {
                 Some(symbol) => {symbol_to_draw = Some(symbol)},
@@ -119,35 +160,40 @@ fn render_field(snake: &Snake, snack: &Snack) {
 
 
 fn main() {
-    let snack = Snack {
+    let mut snack = Snack {
         x: 3,
         y: 5
     };
+
+    let mut snake_body = VecDeque::new();
+    snake_body.push_front(BodyPart {
+        x: 1,
+        y: 1,
+    });
+    snake_body.push_front(BodyPart {
+        x: 2,
+        y: 1,
+    });
+    snake_body.push_front(BodyPart {
+        x: 3,
+        y: 1,
+    });
+
     let mut snake = Snake {
-        body: vec![
-            BodyPart {
-                x: 3,
-                y: 1,
-            },
-            BodyPart {
-                x: 2,
-                y: 1,
-            },
-            BodyPart {
-                x: 1,
-                y: 1,
-            },
-        ],
-        direction: Direction::Right
+        body: snake_body,
+        direction: Direction::Right,
+        skip_next_pop: false,
     };
 
     loop {
+        snake.check_for_game_over();
         render_field(&snake, &snack);
 
         let mut next_move = String::new();
         io::stdout().flush().expect("Some error");
         io::stdin().read_line(&mut next_move).expect("Failed to read line");
-
+        
+        snake.feed(&mut snack);
         match next_move.as_str() {
             "w\n" => snake.move_snake(Direction::Up),
             "s\n" => snake.move_snake(Direction::Down),
