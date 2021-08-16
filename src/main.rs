@@ -1,4 +1,4 @@
-use std::io;
+use std::io::{self, Write};
 
 trait Drawable {
     fn should_draw(&self, x: i32, y: i32) -> Option<char>;
@@ -33,25 +33,19 @@ impl Drawable for BodyPart {
     }
 }
 
+enum Direction {
+    Up, Right, Left, Down
+}
+
 struct Snake {
     body: Vec<BodyPart>,
+    direction: Direction,
 }
 
 impl Drawable for Snake {
     fn should_draw(&self, x: i32, y: i32) -> Option<char> {
         for body_part in &self.body {
             let body_part_should_draw = body_part.should_draw(x, y);
-            // return match body_part_should_draw {
-            //     Some(x) => {
-            //         // if ind == 0 {
-            //         //     Some(x.to_uppercase());
-            //         // }
-            //         Some(x)
-            //     },
-            //     None => {
-            //         None
-            //     },
-            // }
             if body_part_should_draw.is_some() {
                 if std::ptr::eq(body_part, self.body.first().unwrap()) {
                     return Some('0');
@@ -61,6 +55,39 @@ impl Drawable for Snake {
         }
 
         None
+    }
+}
+
+impl Snake {
+    fn move_snake(&mut self, direction: Direction) {
+        let last_body_part = self.body.first().unwrap();
+        let new_body_part = match direction {
+            Direction::Up => {
+                BodyPart {
+                    x: last_body_part.x,
+                    y: last_body_part.y + 1
+                }
+            },
+            Direction::Right => {
+                BodyPart {
+                    x: last_body_part.x + 1,
+                    y: last_body_part.y
+                }
+            },
+            Direction::Left => {
+                BodyPart {
+                    x: last_body_part.x - 1,
+                    y: last_body_part.y 
+                }
+            },
+            Direction::Down => {
+                BodyPart {
+                    x: last_body_part.x,
+                    y: last_body_part.y - 1
+                }
+            },
+        };
+        self.body.push(new_body_part)
     }
 }
 
@@ -96,35 +123,37 @@ fn main() {
         x: 3,
         y: 5
     };
-    let snake = Snake {
+    let mut snake = Snake {
         body: vec![
             BodyPart {
-                x: 1,
-                y: 2,
+                x: 3,
+                y: 1,
+            },
+            BodyPart {
+                x: 2,
+                y: 1,
             },
             BodyPart {
                 x: 1,
-                y: 3,
+                y: 1,
             },
-            BodyPart {
-                x: 1,
-                y: 4,
-            },
-        ]
+        ],
+        direction: Direction::Right
     };
 
     loop {
         render_field(&snake, &snack);
 
-        let allowed_symbols = ['w', 'a', 's', 'd'];
-        
         let mut next_move = String::new();
-        io::stdin()
-            .read_line(&mut next_move)
-            .expect("Failed to read line");
-        
-        if !allowed_symbols.contains(&next_move.chars().next().expect("string is empty")) {
-            panic!("Wrong symbol")
-        }
+        io::stdout().flush().expect("Some error");
+        io::stdin().read_line(&mut next_move).expect("Failed to read line");
+
+        match next_move.as_str() {
+            "w\n" => snake.move_snake(Direction::Up),
+            "s\n" => snake.move_snake(Direction::Down),
+            "d\n" => snake.move_snake(Direction::Right),
+            "a\n" => snake.move_snake(Direction::Left),
+            _ => { panic!("Wrong direction given"); }
+        };
     }
 }
