@@ -1,7 +1,7 @@
 use core::panic;
-use std::io::{self, Write};
-use std::collections::VecDeque;
 use rand::Rng;
+use std::collections::VecDeque;
+use std::io::{self, Write};
 
 const H: i32 = 10;
 const W: i32 = 15;
@@ -9,7 +9,6 @@ const W: i32 = 15;
 trait Drawable {
     fn should_draw(&self, x: i32, y: i32) -> Option<char>;
 }
-
 
 struct Snack {
     x: i32,
@@ -21,7 +20,7 @@ impl Drawable for Snack {
         if *&self.x == x && *&self.y == y {
             return Some('S');
         };
-        return None
+        return None;
     }
 }
 
@@ -31,7 +30,7 @@ impl Snack {
 
         let mut new_x: i32;
         let mut new_y: i32;
-        
+
         // do while
         while {
             new_x = rng.gen_range(0..W);
@@ -55,12 +54,15 @@ impl Drawable for BodyPart {
         if *&self.x == x && *&self.y == y {
             return Some('o');
         };
-        return None
+        return None;
     }
 }
 
 enum Direction {
-    Up, Right, Left, Down
+    Up,
+    Right,
+    Left,
+    Down,
 }
 
 struct Snake {
@@ -89,13 +91,14 @@ impl Snake {
     fn move_snake(&mut self, direction: Direction) {
         let head = self.body.front().unwrap();
         let new_body_part = match direction {
-            Direction::Up => { (head.x, head.y - 1) },
-            Direction::Right => { (head.x + 1, head.y) },
-            Direction::Left => { (head.x - 1, head.y) },
-            Direction::Down => { (head.x, head.y + 1) },
+            Direction::Up => (head.x, head.y - 1),
+            Direction::Right => (head.x + 1, head.y),
+            Direction::Left => (head.x - 1, head.y),
+            Direction::Down => (head.x, head.y + 1),
         };
         self.body.push_front(BodyPart {
-            x: new_body_part.0, y: new_body_part.1
+            x: new_body_part.0,
+            y: new_body_part.1,
         });
         if !self.skip_next_pop {
             self.body.pop_back();
@@ -128,8 +131,7 @@ impl Snake {
         //     panic!("You ate yourself, Uroboros!");
         // }
 
-        if head.x <= 0 || head.x >= W ||
-            head.y <= 0 || head.y >= H {
+        if head.x <= 0 || head.x >= W || head.y <= 0 || head.y >= H {
             panic!("Out of bounds!");
         }
     }
@@ -141,13 +143,13 @@ fn render_field(snake: &Snake, snack: &Snack) {
         for j in 0..W {
             let mut symbol_to_draw = snack.should_draw(j, i);
             match snake.should_draw(j, i) {
-                Some(symbol) => {symbol_to_draw = Some(symbol)},
-                None => {},
+                Some(symbol) => symbol_to_draw = Some(symbol),
+                None => {}
             }
             match symbol_to_draw {
                 None => {
                     row.push_str("_|");
-                },
+                }
                 Some(sym) => {
                     row.push_str(format!("{}|", sym).as_str());
                 }
@@ -158,26 +160,13 @@ fn render_field(snake: &Snake, snack: &Snack) {
     }
 }
 
-
 fn main() {
-    let mut snack = Snack {
-        x: 3,
-        y: 5
-    };
+    let mut snack = Snack { x: 3, y: 5 };
 
     let mut snake_body = VecDeque::new();
-    snake_body.push_front(BodyPart {
-        x: 1,
-        y: 1,
-    });
-    snake_body.push_front(BodyPart {
-        x: 2,
-        y: 1,
-    });
-    snake_body.push_front(BodyPart {
-        x: 3,
-        y: 1,
-    });
+    snake_body.push_front(BodyPart { x: 1, y: 1 });
+    snake_body.push_front(BodyPart { x: 2, y: 1 });
+    snake_body.push_front(BodyPart { x: 3, y: 1 });
 
     let mut snake = Snake {
         body: snake_body,
@@ -191,15 +180,19 @@ fn main() {
 
         let mut next_move = String::new();
         io::stdout().flush().expect("Some error");
-        io::stdin().read_line(&mut next_move).expect("Failed to read line");
-        
+        io::stdin()
+            .read_line(&mut next_move)
+            .expect("Failed to read line");
+
         snake.feed(&mut snack);
-        match next_move.as_str() {
-            "w\n" => snake.move_snake(Direction::Up),
-            "s\n" => snake.move_snake(Direction::Down),
-            "d\n" => snake.move_snake(Direction::Right),
-            "a\n" => snake.move_snake(Direction::Left),
-            _ => { panic!("Wrong direction given"); }
+        match &*next_move.as_str().trim().replace("\n", "") {
+            "w" => snake.move_snake(Direction::Up),
+            "s" => snake.move_snake(Direction::Down),
+            "d" => snake.move_snake(Direction::Right),
+            "a" => snake.move_snake(Direction::Left),
+            _ => {
+                panic!("Wrong direction {} given", next_move);
+            }
         };
     }
 }
