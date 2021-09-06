@@ -1,3 +1,12 @@
+use kiss3d::camera::{Camera, FirstPerson};
+use kiss3d::event::{Key, WindowEvent};
+use kiss3d::light::Light;
+use kiss3d::nalgebra::{geometry::Point, UnitQuaternion, Vector3};
+use kiss3d::nalgebra::{Point3, Transform3, Translation3};
+use kiss3d::window::Window;
+use std::time::Duration;
+use std::{thread, time};
+
 use core::panic;
 use rand::Rng;
 use std::collections::VecDeque;
@@ -54,7 +63,7 @@ impl Drawable for BodyPart {
         if *&self.x == x && *&self.y == y {
             return Some('o');
         };
-        return None;
+        None
     }
 }
 
@@ -160,7 +169,7 @@ fn render_field(snake: &Snake, snack: &Snack) {
     }
 }
 
-fn main() {
+pub fn run() {
     let mut snack = Snack { x: 3, y: 5 };
 
     let mut snake_body = VecDeque::new();
@@ -194,5 +203,59 @@ fn main() {
                 panic!("Wrong direction {} given", next_move);
             }
         };
+    }
+}
+
+fn main() {
+    let mut window = Window::new_with_size("Kiss3d: Cube", 700, 500);
+    window.set_background_color(0.0, 0.0, 0.3);
+
+    let mut field = vec![];
+
+    let look_at_y = (H - 1) as f32 / 2.0;
+    let look_at_x = (W - 1) as f32 / 2.0;
+
+    let mut camera = FirstPerson::new(
+        Point3::new(look_at_x, look_at_y, 15.0),
+        Point3::new(look_at_x, look_at_y, 0.0),
+    );
+
+    for row in 0..W {
+        for cell in 0..H {
+            let mut cube = window.add_cube(1.0, 1.0, 0.0);
+            cube.append_translation(&Translation3::new(row as f32, cell as f32, 0.0));
+            if (row + cell) % 2 == 0 {
+                cube.set_color(0.7, 0.7, 0.7);
+            } else {
+                cube.set_color(1.0, 1.0, 1.0);
+            }
+            field.push(cube);
+        }
+    }
+
+    let mut head = window.add_cube(0.9, 0.9, 0.9);
+    head.append_translation(&Translation3::new(5.0, 6.0, 1.1));
+    head.set_color(0.3, 0.7, 0.3);
+
+    window.set_light(Light::StickToCamera);
+
+    let mut movement = &Translation3::new(1.0, 0.0, 0.0);
+
+    while window.render_with_camera(&mut camera) {
+        for event in window.events().iter() {
+            match event.value {
+                WindowEvent::Key(key, action, modif) => {
+                    // movement = match key {
+                    //     Key::D => &Translation3::new(1.0, 0.0, 0.0),
+                    //     Key::A => &Translation3::new(-1.0, 0.0, 0.0),
+                    //     Key::W => &Translation3::new(0.0, 1.0, 0.0),
+                    //     Key::S => &Translation3::new(0.0, -1.0, 0.0),
+                    //     _ => movement,
+                    // };
+                }
+                _ => {}
+            }
+        }
+        head.prepend_to_local_translation(movement);
     }
 }
